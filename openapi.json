@@ -1,0 +1,202 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MOI Investing Database API",
+    "version": "1.0.0",
+    "description": "Ticker and company-name resolution with simplified, human-readable names. US-listed equities (SEC EDGAR).",
+    "contact": {
+      "name": "MOI Global",
+      "email": "john@manualofideas.com",
+      "url": "https://moiglobal.github.io/moi-investing-database-docs/"
+    },
+    "license": {
+      "name": "Proprietary. Access by API key only.",
+      "identifier": "LicenseRef-MOI-Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mgkjwvuvndqruhfpgzwa.supabase.co/functions/v1",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    { "ApiKeyAuth": [] }
+  ],
+  "paths": {
+    "/resolve-name": {
+      "get": {
+        "summary": "Resolve a ticker or company name to an official and simplified name.",
+        "description": "Provide either `ticker` or `name` (or both; `ticker` wins). Returns the canonical company record plus a short human-readable `simplified_name`.",
+        "operationId": "resolveName",
+        "parameters": [
+          {
+            "name": "ticker",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive ticker symbol. Takes precedence when both are supplied.",
+            "schema": { "type": "string" },
+            "example": "BRK-B"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "description": "Company name. Resolved via exact match on official name, then simplified name, then trigram fuzzy match (similarity >= 0.35).",
+            "schema": { "type": "string" },
+            "example": "Berkshire Hathaway"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Company resolved.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResolveNameResponse" },
+                "example": {
+                  "company_id": 5,
+                  "cik": "0001067983",
+                  "official_name": "BERKSHIRE HATHAWAY INC",
+                  "simplified_name": "BERKSHIRE HATHAWAY",
+                  "all_tickers": ["BRK-A", "BRK-B"],
+                  "source": "rule",
+                  "rule_version": "v1.1",
+                  "confidence": null,
+                  "matched_on": "ticker"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Neither ticker nor name was supplied.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "missing_params" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid `x-api-key` header.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "invalid_api_key" }
+              }
+            }
+          },
+          "404": {
+            "description": "Company not in database.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "not_found" }
+              }
+            }
+          },
+          "405": {
+            "description": "Only GET is supported.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "method_not_allowed" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Live aggregate coverage counts.",
+        "description": "Public, unauthenticated. Returns totals only. Used by the docs site to display live coverage.",
+        "operationId": "getStats",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Coverage snapshot.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Stats" },
+                "example": {
+                  "generated_at": "2026-07-26T15:09:27.332Z",
+                  "rule_version": "v1.1",
+                  "coverage": {
+                    "companies": 8004,
+                    "tickers": 10418,
+                    "simplified_names": 8004
+                  },
+                  "source_breakdown": {
+                    "rule": 7972,
+                    "admin": 32,
+                    "llm": 0
+                  },
+                  "scope": "US-listed equities (SEC EDGAR)"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Contact john@manualofideas.com to request a key."
+      }
+    },
+    "schemas": {
+      "ResolveNameResponse": {
+        "type": "object",
+        "required": ["company_id", "cik", "official_name", "all_tickers", "source", "matched_on"],
+        "properties": {
+          "company_id": { "type": "integer", "description": "Stable internal identifier." },
+          "cik": { "type": "string", "description": "SEC 10-digit Central Index Key." },
+          "official_name": { "type": "string", "description": "Registered SEC filing name." },
+          "simplified_name": { "type": ["string", "null"], "description": "Short human-readable name." },
+          "all_tickers": { "type": "array", "items": { "type": "string" }, "description": "All tickers for this company, sorted." },
+          "source": { "type": "string", "enum": ["rule", "admin", "llm"], "description": "Origin of the simplified name." },
+          "rule_version": { "type": ["string", "null"], "description": "Rule engine version when source=rule." },
+          "confidence": { "type": ["number", "null"], "description": "Confidence 0-1 for probabilistic matches." },
+          "matched_on": { "type": "string", "enum": ["ticker", "name_exact", "simplified_name", "name_fuzzy"] }
+        }
+      },
+      "Stats": {
+        "type": "object",
+        "required": ["generated_at", "rule_version", "coverage", "source_breakdown", "scope"],
+        "properties": {
+          "generated_at": { "type": "string", "format": "date-time" },
+          "rule_version": { "type": "string" },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "companies": { "type": "integer" },
+              "tickers": { "type": "integer" },
+              "simplified_names": { "type": "integer" }
+            }
+          },
+          "source_breakdown": {
+            "type": "object",
+            "properties": {
+              "rule": { "type": "integer" },
+              "admin": { "type": "integer" },
+              "llm": { "type": "integer" }
+            }
+          },
+          "scope": { "type": "string" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" }
+        }
+      }
+    }
+  }
+}

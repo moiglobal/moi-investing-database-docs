@@ -1,0 +1,59 @@
+name: Regenerate docs
+
+on:
+  # Nightly at 03:00 UTC (04:00 or 05:00 Zurich depending on DST).
+  schedule:
+    - cron: "0 3 * * *"
+  # Also regenerate whenever templates or the generator change.
+  push:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - "scripts/generate.py"
+      - ".github/workflows/regenerate.yml"
+  # And allow manual runs from the Actions tab.
+  workflow_dispatch:
+
+# Give the workflow permission to commit regenerated files back to main.
+permissions:
+  contents: write
+
+concurrency:
+  group: regenerate-docs
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate docs
+        run: python3 scripts/generate.py
+
+      - name: Commit changes (if any)
+        run: |
+          set -euo pipefail
+          git config user.name "moi-docs-bot"
+          git config user.email "john+moi-docs-bot@manualofideas.com"
+          # Only compare files that the generator produces. status.json changes
+          # every run because it contains a timestamp; treat that as noise unless
+          # coverage numbers actually changed.
+          git add index.html openapi.json status.json
+          if git diff --cached --quiet -- index.html openapi.json; then
+            # No content change. Discard the status.json timestamp bump so we
+            # don't create empty commits every night.
+            git reset --quiet
+            echo "No content changes. Skipping commit."
+            exit 0
+          fi
+          # Also include the refreshed status.json when we commit.
+          git add status.json
+          git commit -m "docs: nightly regenerate ($(date -u +'%Y-%m-%dT%H:%MZ'))"
+          git push
