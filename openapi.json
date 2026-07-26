@@ -120,15 +120,15 @@
                 "schema": { "$ref": "#/components/schemas/Stats" },
                 "example": {
                   "generated_at": "2026-01-01T00:00:00Z",
-                  "rule_version": "v1.1",
+                  "rule_version": "v1.2",
                   "coverage": {
                     "companies": 8004,
                     "tickers": 10418,
                     "simplified_names": 8004
                   },
                   "source_breakdown": {
-                    "rule": 7972,
-                    "admin": 32,
+                    "rule": 7970,
+                    "admin": 34,
                     "llm": 0
                   },
                   "scope": "US-listed equities (SEC EDGAR)"
