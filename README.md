@@ -2,7 +2,7 @@
 
 Public documentation site for the MOI Global Investing Database API.
 
-**Live site:** https://moiglobal.github.io/moi-investing-database-docs/
+**Live site:** https://docs.capmine.com/
 
 ## What is this repo?
 
