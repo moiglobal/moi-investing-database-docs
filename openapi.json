@@ -127,8 +127,8 @@
                     "simplified_names": 8004
                   },
                   "source_breakdown": {
-                    "rule": 7967,
-                    "admin": 37,
+                    "rule": 7964,
+                    "admin": 40,
                     "llm": 0
                   },
                   "scope": "US-listed equities (SEC EDGAR)"
