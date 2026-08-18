@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-17T03:43:35.581Z",
+  "generated_at": "2026-08-18T03:39:11.688Z",
   "rule_version": "v1.3",
   "coverage": {
     "companies": 8004,
@@ -7,8 +7,8 @@
     "simplified_names": 8004
   },
   "source_breakdown": {
-    "rule": 7926,
-    "admin": 78,
+    "rule": 7924,
+    "admin": 80,
     "llm": 0
   },
   "scope": "US-listed equities (SEC EDGAR)"
