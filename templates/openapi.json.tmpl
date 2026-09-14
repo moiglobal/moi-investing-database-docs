@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "MOI Investing Database API",
-    "version": "1.0.0",
-    "description": "Ticker and company-name resolution with simplified, human-readable names. US-listed equities (SEC EDGAR).",
+    "version": "1.1.0",
+    "description": "Ticker and company-name resolution with simplified, human-readable names. Coverage: US-listed equities (SEC EDGAR) and Australian equities (ASX).",
     "contact": {
       "name": "MOI Global",
       "email": "john@manualofideas.com",
@@ -27,7 +27,7 @@
     "/resolve-name": {
       "get": {
         "summary": "Resolve a ticker or company name to an official and simplified name.",
-        "description": "Provide either `ticker` or `name` (or both; `ticker` wins). Returns the canonical company record plus a short human-readable `simplified_name`.",
+        "description": "Provide either `ticker` or `name` (or both; `ticker` wins). Returns the canonical company record plus a short human-readable `simplified_name`.\n\nSome tickers exist on multiple exchanges (e.g. `RSG` is both Republic Services in the US and Resolute Mining on the ASX). When a ticker is ambiguous and neither `exchange` nor `country` is supplied, the endpoint returns HTTP 300 with the full candidate list. Add `?exchange=US` or `?exchange=XASX` (or `?country=US` / `?country=AU`) to disambiguate.",
         "operationId": "resolveName",
         "parameters": [
           {
@@ -45,6 +45,22 @@
             "description": "Company name. Resolved via exact match on official name, then simplified name, then trigram fuzzy match (similarity >= 0.35).",
             "schema": { "type": "string" },
             "example": "Berkshire Hathaway"
+          },
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "description": "Restrict a ticker lookup to a specific exchange. Accepts shorthand (`US`, `ASX`), MICs (`XNAS`, `XNYS`, `XNMS`, `ARCX`, `BATS`, `XCBO`, `IEXG`, `XASE`, `XPHL`, `XCIS`, `XASX`). Case-insensitive.",
+            "schema": { "type": "string" },
+            "example": "US"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Restrict a ticker lookup to a country. Accepts ISO 3166-1 alpha-2 or alpha-3 (`US`, `USA`, `AU`, `AUS`). Ignored if `exchange` is also supplied.",
+            "schema": { "type": "string" },
+            "example": "AU"
           }
         ],
         "responses": {
@@ -58,21 +74,60 @@
                   "cik": "0001067983",
                   "official_name": "BERKSHIRE HATHAWAY INC",
                   "simplified_name": "BERKSHIRE HATHAWAY",
+                  "country": "US",
+                  "exchange": "US",
                   "all_tickers": ["BRK-A", "BRK-B"],
+                  "all_listings": [
+                    { "ticker": "BRK-A", "exchange": "US" },
+                    { "ticker": "BRK-B", "exchange": "US" }
+                  ],
                   "source": "rule",
-                  "rule_version": "v1.1",
+                  "rule_version": "{{rule_version}}",
                   "confidence": null,
                   "matched_on": "ticker"
                 }
               }
             }
           },
+          "300": {
+            "description": "Ticker exists on multiple exchanges and no `exchange`/`country` was supplied. The `candidates` array lists every match; re-request with an `exchange` or `country` filter to pick one.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AmbiguousTickerResponse" },
+                "example": {
+                  "error": "ambiguous_ticker",
+                  "message": "Add ?exchange= or ?country= to disambiguate.",
+                  "ticker": "RSG",
+                  "candidates": [
+                    {
+                      "company_id": 1871,
+                      "cik": "0001060391",
+                      "official_name": "REPUBLIC SERVICES INC",
+                      "country": "US",
+                      "exchange": "US",
+                      "mic": null,
+                      "simplified_name": "Republic Services"
+                    },
+                    {
+                      "company_id": 17601,
+                      "cik": null,
+                      "official_name": "RESOLUTE MINING LIMITED",
+                      "country": "AU",
+                      "exchange": "ASX",
+                      "mic": "XASX",
+                      "simplified_name": "Resolute Mining"
+                    }
+                  ]
+                }
+              }
+            }
+          },
           "400": {
-            "description": "Neither ticker nor name was supplied.",
+            "description": "Missing required params, or unknown exchange/country code.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" },
-                "example": { "error": "missing_params" }
+                "example": { "error": "unknown_exchange_or_country" }
               }
             }
           },
@@ -131,7 +186,7 @@
                     "admin": {{source_admin}},
                     "llm": {{source_llm}}
                   },
-                  "scope": "US-listed equities (SEC EDGAR)"
+                  "scope": "US-listed equities (SEC EDGAR) and Australian equities (ASX)"
                 }
               }
             }
@@ -152,17 +207,56 @@
     "schemas": {
       "ResolveNameResponse": {
         "type": "object",
-        "required": ["company_id", "cik", "official_name", "all_tickers", "source", "matched_on"],
+        "required": ["company_id", "official_name", "all_tickers", "all_listings", "source", "matched_on"],
         "properties": {
           "company_id": { "type": "integer", "description": "Stable internal identifier." },
-          "cik": { "type": "string", "description": "SEC 10-digit Central Index Key." },
-          "official_name": { "type": "string", "description": "Registered SEC filing name." },
+          "cik": { "type": ["string", "null"], "description": "SEC 10-digit Central Index Key. Null for non-US companies." },
+          "official_name": { "type": "string", "description": "Registered filing name." },
           "simplified_name": { "type": ["string", "null"], "description": "Short human-readable name." },
-          "all_tickers": { "type": "array", "items": { "type": "string" }, "description": "All tickers for this company, sorted." },
+          "country": { "type": ["string", "null"], "description": "ISO 3166-1 alpha-2 country of the company (e.g. `US`, `AU`)." },
+          "exchange": { "type": ["string", "null"], "description": "Exchange of the matched ticker (e.g. `US`, `ASX`)." },
+          "all_tickers": { "type": "array", "items": { "type": "string" }, "description": "All tickers for this company, sorted. Retained for backward compatibility." },
+          "all_listings": {
+            "type": "array",
+            "description": "All (ticker, exchange) pairs for this company.",
+            "items": {
+              "type": "object",
+              "required": ["ticker", "exchange"],
+              "properties": {
+                "ticker": { "type": "string" },
+                "exchange": { "type": "string" }
+              }
+            }
+          },
           "source": { "type": "string", "enum": ["rule", "admin", "llm"], "description": "Origin of the simplified name." },
           "rule_version": { "type": ["string", "null"], "description": "Rule engine version when source=rule." },
           "confidence": { "type": ["number", "null"], "description": "Confidence 0-1 for probabilistic matches." },
           "matched_on": { "type": "string", "enum": ["ticker", "name_exact", "simplified_name", "name_fuzzy"] }
+        }
+      },
+      "AmbiguousTickerResponse": {
+        "type": "object",
+        "required": ["error", "ticker", "candidates"],
+        "properties": {
+          "error": { "type": "string", "enum": ["ambiguous_ticker"] },
+          "message": { "type": "string" },
+          "ticker": { "type": "string" },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["company_id", "official_name", "country", "exchange"],
+              "properties": {
+                "company_id": { "type": "integer" },
+                "cik": { "type": ["string", "null"] },
+                "official_name": { "type": "string" },
+                "country": { "type": ["string", "null"] },
+                "exchange": { "type": "string" },
+                "mic": { "type": ["string", "null"] },
+                "simplified_name": { "type": ["string", "null"] }
+              }
+            }
+          }
         }
       },
       "Stats": {
