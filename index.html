@@ -92,8 +92,8 @@
   <h1>MOI Investing Database API</h1>
   <p class="tagline">Ticker and company-name resolution with simplified, human-readable names.</p>
   <div class="badges">
-    <span><strong>Status:</strong> Phase 1 live</span>
-    <span><strong>Scope:</strong> US-listed equities</span>
+    <span><strong>Status:</strong> Live</span>
+    <span><strong>Scope:</strong> US-listed equities + ASX</span>
     <span><strong>Rule engine:</strong> v1.5</span>
     <span><strong>Last verified:</strong> 2026-09-14</span>
   </div>
@@ -119,8 +119,10 @@
   <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
   <tr><td><code>ticker</code></td><td>string</td><td>Case-insensitive ticker symbol. Takes precedence when both are supplied.</td></tr>
   <tr><td><code>name</code></td><td>string</td><td>Company name. Resolved via exact match on official name, then simplified name, then trigram fuzzy match (similarity &gt;= 0.35).</td></tr>
+  <tr><td><code>exchange</code></td><td>string</td><td>Restrict a ticker lookup to a specific exchange when the ticker exists on more than one market. Accepts shorthand (<code>US</code>, <code>ASX</code>) or MIC codes (<code>XNAS</code>, <code>XNYS</code>, <code>XASX</code>, etc.). Case-insensitive.</td></tr>
+  <tr><td><code>country</code></td><td>string</td><td>Alternative to <code>exchange</code>. Accepts ISO 3166-1 alpha-2 or alpha-3 (<code>US</code>, <code>USA</code>, <code>AU</code>, <code>AUS</code>). Ignored if <code>exchange</code> is also supplied.</td></tr>
 </table>
-<p>At least one of <code>ticker</code> or <code>name</code> is required.</p>
+<p>At least one of <code>ticker</code> or <code>name</code> is required. Some tickers (e.g. <code>RSG</code>) exist on both the US and ASX; the endpoint returns HTTP 300 with a candidate list when the ticker is ambiguous and no <code>exchange</code>/<code>country</code> is supplied.</p>
 
 <h3>Example</h3>
 <pre><code>curl "https://mgkjwvuvndqruhfpgzwa.supabase.co/functions/v1/resolve-name?ticker=BRK-B" \
@@ -132,23 +134,47 @@
   "cik": "0001067983",
   "official_name": "BERKSHIRE HATHAWAY INC",
   "simplified_name": "BERKSHIRE HATHAWAY",
+  "country": "US",
+  "exchange": "US",
   "all_tickers": ["BRK-A", "BRK-B"],
+  "all_listings": [
+    { "ticker": "BRK-A", "exchange": "US" },
+    { "ticker": "BRK-B", "exchange": "US" }
+  ],
   "source": "rule",
-  "rule_version": "v1.1",
+  "rule_version": "v1.5",
   "confidence": null,
   "matched_on": "ticker"
 }</code></pre>
+
+<p>Ambiguous example (ticker exists on multiple exchanges):</p>
+<pre><code>curl "https://mgkjwvuvndqruhfpgzwa.supabase.co/functions/v1/resolve-name?ticker=RSG" \
+     -H "x-api-key: moi_..."</code></pre>
+<pre><code>HTTP/1.1 300 Multiple Choices
+{
+  "error": "ambiguous_ticker",
+  "message": "Add ?exchange= or ?country= to disambiguate.",
+  "ticker": "RSG",
+  "candidates": [
+    { "company_id": 1871, "official_name": "REPUBLIC SERVICES INC",     "country": "US", "exchange": "US",  "cik": "0001060391" },
+    { "company_id": 17601, "official_name": "RESOLUTE MINING LIMITED", "country": "AU", "exchange": "ASX", "cik": null }
+  ]
+}</code></pre>
+<pre><code>curl "https://mgkjwvuvndqruhfpgzwa.supabase.co/functions/v1/resolve-name?ticker=RSG&exchange=ASX"</code></pre>
 
 <h3>Response fields</h3>
 <table>
   <tr><th>Field</th><th>Type</th><th>Description</th></tr>
   <tr><td><code>company_id</code></td><td>integer</td><td>Stable internal identifier.</td></tr>
-  <tr><td><code>cik</code></td><td>string</td><td>SEC 10-digit Central Index Key (source of truth).</td></tr>
-  <tr><td><code>official_name</code></td><td>string</td><td>Company's registered SEC filing name.</td></tr>
+  <tr><td><code>cik</code></td><td>string | null</td><td>SEC 10-digit Central Index Key. Null for non-US companies.</td></tr>
+  <tr><td><code>official_name</code></td><td>string</td><td>Registered filing name.</td></tr>
   <tr><td><code>simplified_name</code></td><td>string | null</td><td>Short human-readable form. May be null in rare edge cases.</td></tr>
-  <tr><td><code>all_tickers</code></td><td>string[]</td><td>All tickers associated with this company, sorted.</td></tr>
+  <tr><td><code>country</code></td><td>string | null</td><td>ISO 3166-1 alpha-2 country of the company (e.g. <code>US</code>, <code>AU</code>).</td></tr>
+  <tr><td><code>exchange</code></td><td>string | null</td><td>Exchange of the matched ticker (e.g. <code>US</code>, <code>ASX</code>).</td></tr>
+  <tr><td><code>all_tickers</code></td><td>string[]</td><td>All tickers for this company, sorted. Retained for backward compatibility.</td></tr>
+  <tr><td><code>all_listings</code></td><td>object[]</td><td>All (ticker, exchange) pairs for this company. Each element is <code>{"ticker": string, "exchange": string}</code>.</td></tr>
   <tr><td><code>source</code></td><td>string</td><td>Origin of the simplified name: <code>rule</code>, <code>admin</code>, or <code>llm</code>.</td></tr>
-  <tr><td><code>rule_version</code></td><td>string | null</td><td>Rule engine version (e.g. <code>v1.1</code>) when <code>source=rule</code>.</td></tr>
+  <tr><td><code>rule_version</code></td><td>string | null</td><td>Rule engine version when <code>source=rule</code>.</td></tr>
   <tr><td><code>confidence</code></td><td>number | null</td><td>Confidence score (0-1) when <code>source</code> indicates a probabilistic match.</td></tr>
   <tr><td><code>matched_on</code></td><td>string</td><td>How the query resolved: <code>ticker</code>, <code>name_exact</code>, <code>simplified_name</code>, or <code>name_fuzzy</code>.</td></tr>
 </table>
@@ -156,7 +182,9 @@
 <h3>Error responses</h3>
 <table>
   <tr><th>Status</th><th>Body</th><th>Meaning</th></tr>
+  <tr><td>300</td><td><code>{"error":"ambiguous_ticker", "ticker":"RSG", "candidates":[...]}</code></td><td>Ticker exists on multiple exchanges. Re-request with <code>?exchange=</code> or <code>?country=</code>.</td></tr>
   <tr><td>400</td><td><code>{"error":"missing_params"}</code></td><td>Neither <code>ticker</code> nor <code>name</code> supplied.</td></tr>
+  <tr><td>400</td><td><code>{"error":"unknown_exchange_or_country"}</code></td><td>The <code>exchange</code> or <code>country</code> value did not match any supported code.</td></tr>
   <tr><td>401</td><td><code>{"error":"invalid_api_key"}</code></td><td>Missing or invalid <code>x-api-key</code> header.</td></tr>
   <tr><td>404</td><td><code>{"error":"not_found"}</code></td><td>Company not in database.</td></tr>
   <tr><td>405</td><td><code>{"error":"method_not_allowed"}</code></td><td>Only GET is supported.</td></tr>
@@ -171,7 +199,10 @@
 
 <h2>Scope and limitations</h2>
 <ul>
-  <li><strong>US-listed equities only.</strong> Sourced from SEC EDGAR. International tickers (LSE, XETRA, TSE, ASX, HKEX and similar) are not covered in Phase 1.</li>
+  <li><strong>US-listed equities</strong> sourced from SEC EDGAR (<code>country=US</code>, <code>exchange=US</code>).</li>
+  <li><strong>Australian equities</strong> sourced from the ASX (<code>country=AU</code>, <code>exchange=ASX</code>).</li>
+  <li>Other exchanges (LSE, XETRA, TSE, HKEX, etc.) are not yet covered.</li>
+  <li>Approximately 432 tickers exist on both the US and ASX. Requests for these tickers without an <code>exchange</code> or <code>country</code> filter return HTTP 300 with the full candidate list.</li>
   <li><strong>Rate limiting</strong> is not currently enforced per key, but keys can be revoked at any time if a consumer bursts traffic.</li>
   <li><strong>Simplified names</strong> are best-effort human labels. They are not substitutes for the <code>official_name</code> in any legal, filing, or trading context.</li>
 </ul>
