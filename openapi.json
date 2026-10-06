@@ -179,11 +179,11 @@
                   "coverage": {
                     "companies": 10047,
                     "tickers": 12461,
-                    "simplified_names": 10043
+                    "simplified_names": 10047
                   },
                   "source_breakdown": {
                     "rule": 9926,
-                    "admin": 117,
+                    "admin": 121,
                     "llm": 0
                   },
                   "scope": "US-listed equities (SEC EDGAR) and Australian equities (ASX)"
