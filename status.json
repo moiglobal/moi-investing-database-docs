@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-10-07T09:38:58.235Z",
-  "rule_version": "v1.5",
+  "generated_at": "2026-10-08T05:06:10.594Z",
+  "rule_version": "v1.6",
   "coverage": {
     "companies": 10047,
     "tickers": 12461,
     "simplified_names": 10047
   },
   "source_breakdown": {
-    "rule": 9926,
-    "admin": 121,
+    "rule": 9924,
+    "admin": 123,
     "llm": 0
   },
   "scope": "US-listed equities (SEC EDGAR) + ASX-listed equities"
