@@ -212,7 +212,7 @@
           "company_id": { "type": "integer", "description": "Stable internal identifier." },
           "cik": { "type": ["string", "null"], "description": "SEC 10-digit Central Index Key. Null for non-US companies." },
           "official_name": { "type": "string", "description": "Registered filing name." },
-          "simplified_name": { "type": ["string", "null"], "description": "Short human-readable name." },
+          "simplified_name": { "type": ["string", "null"], "description": "Short human-readable name. When source is null, this repeats official_name." },
           "country": { "type": ["string", "null"], "description": "ISO 3166-1 alpha-2 country of the company (e.g. `US`, `AU`)." },
           "exchange": { "type": ["string", "null"], "description": "Exchange of the matched ticker (e.g. `US`, `ASX`)." },
           "all_tickers": { "type": "array", "items": { "type": "string" }, "description": "All tickers for this company, sorted. Retained for backward compatibility." },
@@ -228,7 +228,7 @@
               }
             }
           },
-          "source": { "type": "string", "enum": ["rule", "admin", "llm"], "description": "Origin of the simplified name." },
+          "source": { "type": ["string", "null"], "enum": ["rule", "admin", "llm", null], "description": "Origin of the simplified name. Null when no simplified name could be derived: simplified_name then repeats official_name, and the result is not stored, so a later request may return a derived name." },
           "rule_version": { "type": ["string", "null"], "description": "Rule engine version when source=rule." },
           "confidence": { "type": ["number", "null"], "description": "Confidence 0-1 for probabilistic matches." },
           "matched_on": { "type": "string", "enum": ["ticker", "name_exact", "simplified_name", "name_fuzzy"] }

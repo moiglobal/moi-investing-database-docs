@@ -168,12 +168,12 @@
   <tr><td><code>company_id</code></td><td>integer</td><td>Stable internal identifier.</td></tr>
   <tr><td><code>cik</code></td><td>string | null</td><td>SEC 10-digit Central Index Key. Null for non-US companies.</td></tr>
   <tr><td><code>official_name</code></td><td>string</td><td>Registered filing name.</td></tr>
-  <tr><td><code>simplified_name</code></td><td>string | null</td><td>Short human-readable form. May be null in rare edge cases.</td></tr>
+  <tr><td><code>simplified_name</code></td><td>string | null</td><td>Short human-readable form. When <code>source</code> is null, this repeats <code>official_name</code>.</td></tr>
   <tr><td><code>country</code></td><td>string | null</td><td>ISO 3166-1 alpha-2 country of the company (e.g. <code>US</code>, <code>AU</code>).</td></tr>
   <tr><td><code>exchange</code></td><td>string | null</td><td>Exchange of the matched ticker (e.g. <code>US</code>, <code>ASX</code>).</td></tr>
   <tr><td><code>all_tickers</code></td><td>string[]</td><td>All tickers for this company, sorted. Retained for backward compatibility.</td></tr>
   <tr><td><code>all_listings</code></td><td>object[]</td><td>All (ticker, exchange) pairs for this company. Each element is <code>{"ticker": string, "exchange": string}</code>.</td></tr>
-  <tr><td><code>source</code></td><td>string</td><td>Origin of the simplified name: <code>rule</code>, <code>admin</code>, or <code>llm</code>.</td></tr>
+  <tr><td><code>source</code></td><td>string | null</td><td>Origin of the simplified name: <code>rule</code>, <code>admin</code>, or <code>llm</code>. <code>null</code> when no simplified name could be derived: <code>simplified_name</code> then repeats <code>official_name</code>, and the result is not stored, so a later request may return a derived name.</td></tr>
   <tr><td><code>rule_version</code></td><td>string | null</td><td>Rule engine version when <code>source=rule</code>.</td></tr>
   <tr><td><code>confidence</code></td><td>number | null</td><td>Confidence score (0-1) when <code>source</code> indicates a probabilistic match.</td></tr>
   <tr><td><code>matched_on</code></td><td>string</td><td>How the query resolved: <code>ticker</code>, <code>name_exact</code>, <code>simplified_name</code>, or <code>name_fuzzy</code>.</td></tr>
