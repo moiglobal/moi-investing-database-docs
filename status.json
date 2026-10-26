@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-25T08:01:14.318Z",
+  "generated_at": "2026-10-26T08:22:48.802Z",
   "rule_version": "v1.6",
   "coverage": {
     "companies": 10047,
@@ -7,8 +7,8 @@
     "simplified_names": 10047
   },
   "source_breakdown": {
-    "rule": 9919,
-    "admin": 128,
+    "rule": 9917,
+    "admin": 130,
     "llm": 0
   },
   "scope": "US-listed equities (SEC EDGAR) + ASX-listed equities"
