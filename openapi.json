@@ -182,8 +182,8 @@
                     "simplified_names": 10047
                   },
                   "source_breakdown": {
-                    "rule": 9915,
-                    "admin": 132,
+                    "rule": 9912,
+                    "admin": 135,
                     "llm": 0
                   },
                   "scope": "US-listed equities (SEC EDGAR) and Australian equities (ASX)"
